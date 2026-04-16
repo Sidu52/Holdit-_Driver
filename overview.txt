@@ -1,0 +1,177 @@
+This project is a small Expo/React Native driver app with a clean intended layering, but it is still in an early scaffold stage. The current runtime is basically:
+
+Expo shell -> global providers -> splash screen -> auth UI -> API calls
+
+The main composition happens in App.tsx (line 43). It mounts three app-wide providers:
+
+Redux for app/session state via store.ts (line 4)
+React Query for server mutations/queries via queryClient.ts (line 3)
+Socket context for realtime transport via SocketProvider.tsx (line 19)
+After that, the app shows a JS-driven animated splash, then switches into a very simple auth flow controlled by local component state in App.tsx (line 17).
+
+Architecture By Layer
+
+1. App shell / bootstrap
+
+index.ts just registers the Expo root component. The real boot logic is in App.tsx (line 1).
+
+What boot does today:
+
+Prevents Expo’s native splash from auto-hiding
+Hides it after mount
+Shows a custom animated splash from AnimatedSplash.tsx (line 9)
+Once the splash finishes, renders Main
+This means startup UX is separated from business logic, which is a good sign. The splash is presentation-only and doesn’t hold app data.
+
+2. Navigation / screen flow
+
+There is no navigation library yet. Instead, screen changes are controlled by local state in App.tsx (line 18):
+
+login
+verify
+That makes the current app a finite two-step auth prototype rather than a full navigable application. No stack navigator, tabs, protected routes, or deep linking are present.
+
+3. UI / presentation layer
+
+The UI lives under src/screens and src/components.
+
+Current screens:
+
+LoginScreen.tsx (line 12)
+VerificationScreen.tsx (line 14)
+These screens are mostly “smart-presentational” components:
+
+They own local input state
+They call React Query mutations
+They notify parents via callbacks like onSendOtp and onVerify
+So the UI is not fully dumb, but it also doesn’t contain raw HTTP code. That’s a reasonable middle ground for a small app.
+
+4. State management
+
+Redux is used for driver/session/domain state through a single slice: driverSlice.ts (line 33).
+
+It models:
+
+online/offline status
+on-trip status
+location
+profile
+active booking
+auth token
+That tells us the intended domain architecture is broader than the current screens. The app is clearly being prepared for:
+
+authenticated sessions
+live driver status
+booking lifecycle
+ride execution
+Important detail: this state is mostly prepared, not yet fully wired into the current UI. For example, the auth flow does not dispatch setToken after OTP verification even though the slice supports it; App.tsx (line 35) only logs success.
+
+5. Data access / API layer
+
+The API layer is split sensibly:
+
+shared HTTP client in apiClient.ts (line 7)
+auth endpoints in authService.ts (line 3)
+driver endpoints in driverService.ts (line 3)
+ride endpoints in rideService.ts (line 3)
+This is the cleanest part of the architecture. Responsibilities are separated by domain, and screens do not call Axios directly.
+
+Current API conventions:
+
+single Axios instance with base URL and JSON headers
+service objects grouped by backend resource
+React Query mutations wrapped in hooks like useAuth.ts (line 4)
+The backend contract seems to be a REST API for driver auth and ride workflow.
+
+6. Server state vs client state
+
+The project is set up to use both:
+
+React Query for server interactions
+Redux for app/client session state
+That split is architecturally sound:
+
+React Query should own fetch/mutation lifecycle and caching
+Redux should own app-wide session/domain state that multiple features need immediately
+Right now, though, the split is only partially implemented:
+
+auth mutations use React Query
+Redux exists but is barely consumed
+there are no queries yet for profile/rides
+no cache invalidation or optimistic updates are present
+So the architecture is “prepared for scale” more than “fully realized”.
+
+7. Realtime / sockets
+
+Realtime support is encapsulated in SocketProvider.tsx (line 19), which is a good boundary.
+
+How it works:
+
+reads driver.token from Redux
+if no token exists, disconnects socket
+if token exists, opens socket.io-client against the same backend base URL
+exposes { socket, isConnected } via React context
+That’s a nice design choice because screens/features can consume sockets without importing transport details.
+
+But today it’s dormant: since the auth flow never stores a token in Redux, the socket layer will usually never connect.
+
+Current Runtime Flow
+
+Today’s actual flow is:
+
+App boots and mounts providers in App.tsx (line 52)
+Custom splash runs via AnimatedSplash.tsx (line 13)
+Main renders login screen
+Login screen calls useLoginMutation -> authService.login -> backend /login
+On success, parent switches to verify screen
+Verify screen calls useVerifyOtpMutation -> authService.verifyOtp
+On success, app only logs the OTP result; it does not persist session, navigate further, or hydrate Redux
+So this is not yet a complete end-to-end authenticated architecture. It is more like the first slice of one.
+
+What The Project Is Clearly Designed To Become
+
+Based on the slice and services, the intended architecture looks like this:
+
+Auth feature
+Driver profile/status feature
+Ride assignment and ride lifecycle feature
+Realtime socket updates tied to authenticated session
+The existing modules already hint at future flows:
+
+profile fetch/update
+online status toggling
+location updates
+assigned/active/history rides
+booking acceptance, pickup confirmation, storage lifecycle
+That suggests a domain-driven mobile client for delivery drivers.
+
+Strengths
+
+Good separation between UI, services, state, and realtime
+Shared API client instead of ad hoc fetches
+Redux + React Query combination is appropriate for this kind of app
+Socket management is isolated behind a provider/context
+Folder structure is simple and easy to extend
+Current Gaps / Risks
+
+No real navigation yet; flow is controlled by a local screen state in App.tsx (line 18)
+Auth success is not wired into Redux, so session architecture is incomplete
+Socket layer depends on token state that is never set
+No persistence layer for auth/session
+No Axios interceptors for auth refresh/error normalization
+Driver and ride services exist but are not yet consumed by screens
+Error handling is mostly console.error, not user-facing state
+No feature modules beyond auth UI
+Sanity Check
+
+I also ran a TypeScript compile check. The project does not currently typecheck cleanly:
+
+@expo/vector-icons cannot be resolved in multiple files
+the OTP input ref callback in VerificationScreen.tsx (line 101) returns a value, which violates the expected ref callback type
+So the architecture is understandable and promising, but the project is still part scaffold, part prototype.
+
+Bottom Line
+
+This app is architected as a mobile driver client with four layers: UI, app state, API services, and realtime sockets. The structure is good for growth, but the implementation is currently centered on a two-screen auth prototype. The key missing connection is the handoff from successful OTP verification into persistent authenticated app state, navigation, and downstream driver/ride features.
+
+If you want, I can turn this into a visual architecture diagram next, or walk file-by-file through how I’d evolve it into a production-ready driver app.
