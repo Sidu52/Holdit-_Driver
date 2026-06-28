@@ -39,7 +39,7 @@ const handleAuthFailure = async () => {
 };
 
 // AXIOS INSTANCE
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || "https://holdit-backend-api.onrender.com/api/v1").replace(/\/+$/, "");
+const API_URL = (process.env.EXPO_PUBLIC_API_URL).replace(/\/+$/, "");
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -97,9 +97,15 @@ api.interceptors.request.use(
 
 // RESPONSE INTERCEPTOR
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('=== API RESPONSE ===');
+    console.log('Response status:', response.status);
+    console.log('Response data:', JSON.stringify(response.data));
+    console.log('=================');
+    return response;
+  },
   async (error: AxiosError) => {
-      console.log('=== API ERROR ===');
+    console.log('=== API ERROR ===');
     console.log('Message:', error.message);
     console.log('Code:', error.code);
     console.log('Request made?', !!error.request);
