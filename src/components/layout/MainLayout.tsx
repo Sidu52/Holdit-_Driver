@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { View, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { BottomTabBar, TabScreen } from "./BottomTabBar";
 import { DashboardScreen } from "../../screens/Dashboard/DashboardScreen";
 import { EarningsScreen } from "../../screens/Earnings/EarningsScreen";
@@ -32,13 +34,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ driverPhone, onLogout })
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <StatusBar style="dark" backgroundColor={THEME.BACKGROUND_LIGHT} />
       <View style={styles.content}>
         {renderScreen()}
       </View>
       <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
       <SignupBottomSheet />
-    </View>
+    </SafeAreaView>
   );
 };
 

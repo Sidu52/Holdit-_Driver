@@ -63,32 +63,17 @@ const refreshApi = axios.create({
 // REQUEST INTERCEPTOR
 api.interceptors.request.use(
   async (config) => {
-    // Read token synchronously from Redux Store instead of async SecureStore
-    // which is more reliable for interceptors in production
     const state = store.getState();
     const accessToken = state.auth.accessToken;
 
-    const fullUrl = `${config.baseURL || ""}${config.url || ""}`;
-    console.log(`REQUEST: ${config.method?.toUpperCase()} ${fullUrl}`);
-    console.log("=== API DEBUG ===");
-    console.log("Redux Token State:", accessToken ? "PRESENT" : "MISSING");
-    
     if (accessToken && accessToken !== "null" && accessToken !== "undefined") {
       config.headers.set("Authorization", `Bearer ${accessToken}`);
-      const masked = `${accessToken.substring(0, 10)}...${accessToken.slice(-4)}`;
-      console.log("Authorization Header Set: Bearer", masked);
-    } else {
-      console.log("Authorization Header: NOT SET (Token invalid or missing in Redux)");
-      // Diagnostic: Check SecureStore directly as well
-      tokenService.getAccessToken().then(token => {
-        console.log("Diagnostic SecureStore check:", token ? "Token exists in SecureStore" : "SecureStore is EMPTY");
-      });
     }
 
-    if (config.data) {
-      console.log("Data:", JSON.stringify(config.data));
+    if (__DEV__) {
+      const fullUrl = `${config.baseURL || ""}${config.url || ""}`;
+      console.log(`[API Request] ${config.method?.toUpperCase()} ${fullUrl}`);
     }
-    console.log("==================");
     return config;
   },
   (error) => Promise.reject(error),
@@ -97,25 +82,23 @@ api.interceptors.request.use(
 
 // RESPONSE INTERCEPTOR
 api.interceptors.response.use(
-  (response) => {
-    console.log('=== API RESPONSE ===');
-    console.log('Response status:', response.status);
-    console.log('Response data:', JSON.stringify(response.data));
-    console.log('=================');
-    return response;
-  },
+  (response) => response,
   async (error: AxiosError) => {
-    console.log('=== API ERROR ===');
-    console.log('Message:', error.message);
-    console.log('Code:', error.code);
-    console.log('Request made?', !!error.request);
-    console.log('Got response?', !!error.response);
-    console.log('Response status:', error.response?.status);
-    console.log('Response data:', JSON.stringify(error.response?.data));
-    console.log('=================');
+    if (__DEV__) {
+      console.log(`[API Error] ${error.config?.url}:`, error.message, error.response?.status);
+    }
+    
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };
+
+    const responseData = error.response?.data as any;
+    const isDriverNotFound = error.response?.status === 404 && responseData?.message === "Driver not found";
+
+    if (isDriverNotFound) {
+      await handleAuthFailure();
+      return Promise.reject(formatError(error));
+    }
 
     if (error.response?.status !== 401) {
       return Promise.reject(formatError(error));
@@ -145,7 +128,7 @@ api.interceptors.response.use(
         throw new Error("No refresh token available");
       }
 
-      const response = await refreshApi.post("/user/auth/refresh", {
+      const response = await refreshApi.post("/driver/auth/refresh", {
         refreshToken,
       });
 
@@ -153,7 +136,7 @@ api.interceptors.response.use(
         response.data.data;
 
       await tokenService.setTokens(newAccessToken, newRefreshToken);
-      store.dispatch(setTokens({ access: newAccessToken, refresh: newRefreshToken }));
+      store.dispatch(setTokens({ access: newAccessToken, refresh: newRefreshToken, isSignupComplete: true }));
       processQueue(null, newAccessToken);
 
       originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;

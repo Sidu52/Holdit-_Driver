@@ -10,8 +10,13 @@ export const useAuth = () => {
 
   const loginMutation = useMutation({
     mutationFn: authEndpoints.login,
-    onSuccess: () => {
-      showSuccess("OTP sent to your phone");
+    onSuccess: (response: any) => {
+      const devOtp = response?.data?.data?.otp;
+      if (devOtp) {
+        showSuccess(`DEV MODE OTP: ${devOtp}`);
+      } else {
+        showSuccess("OTP sent to your phone");
+      }
     },
     onError: (err: any) => {
       showError(err?.response?.data?.message || "Login failed");

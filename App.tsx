@@ -9,11 +9,11 @@ import { AnimatedSplash } from "./src/components/AnimatedSplash";
 import { LoginScreen } from "./src/screens/Auth/LoginScreen";
 import { VerificationScreen } from "./src/screens/Auth/VerificationScreen";
 import { DashboardScreen } from "./src/screens/Dashboard/DashboardScreen";
-import { CompleteProfileScreen } from "./src/screens/Auth/CompleteProfileScreen";
 import { tokenService } from "./src/utils/tokenManager";
 import { setTokens, clearAuth } from "./src/features/auth/authSlice";
 import Toast from "react-native-toast-message";
 import { MainLayout } from "./src/components/layout/MainLayout";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 // Prevent the native splash screen from hiding automatically
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -109,7 +109,7 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <SafeAreaProvider>
       <Provider store={store}>
           <QueryClientProvider client={queryClient}>
           <SocketProvider>
@@ -122,6 +122,6 @@ export default function App() {
         </QueryClientProvider>
       </Provider>
       <Toast />
-    </>
+    </SafeAreaProvider>
   );
 }

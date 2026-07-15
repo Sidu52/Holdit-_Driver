@@ -13,6 +13,7 @@ export const useDriverProfile = () => {
   return useQuery({
     queryKey: ["driverProfile"],
     queryFn: getDriverProfile,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };
 
@@ -20,6 +21,7 @@ export const useDriverStats = () => {
   return useQuery({
     queryKey: ["driverStats"],
     queryFn: getDriverStats,
+    staleTime: 1000 * 60, // 1 minute
   });
 };
 

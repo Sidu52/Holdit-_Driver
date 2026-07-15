@@ -101,7 +101,6 @@ export const useSocketLocationUpdate = (
           text1: "Location Update Failed",
           text2:
             "Unable to send location updates. Please check your connection.",
-          duration: 5000,
         });
         errorCountRef.current = 0; // Reset after showing toast
       }

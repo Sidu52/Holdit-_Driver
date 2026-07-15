@@ -9,6 +9,7 @@ export interface DriverProfile {
   is_online: boolean;
   is_signup: boolean;
   isVerified: boolean;
+  vehicle_type?: string;
   vehicleDetails?: {
     type: string;
     make: string;

@@ -20,11 +20,13 @@ import { showError, showSuccess } from '../../utils/toast';
 import { tokenService } from '../../utils/tokenManager';
 import { CustomBottomSheet } from '../ui/CustomBottomSheet';
 import { useDriverProfile } from '../../hooks/useDriver';
+import * as Location from 'expo-location';
 
 const VEHICLE_OPTIONS = [
   { label: 'Scooter', value: 'scooter', icon: 'bicycle-outline' },
   { label: 'Bike', value: 'bike', icon: 'bicycle-outline' },
-  { label: 'Car', value: 'car', icon: 'car-outline' },
+  { label: 'Auto', value: 'auto', icon: 'car-outline' },
+  { label: 'Car', value: 'car', icon: 'car-sport-outline' },
 ];
 
 const GENDER_OPTIONS = ['male', 'female', 'other'];
@@ -57,15 +59,54 @@ export const SignupBottomSheet = () => {
   }, [isSignupComplete]);
 
   useEffect(() => {
+    if (user && user.is_signup && !isSignupComplete) {
+      tokenService.setSignupComplete(true);
+      dispatch(setSignupComplete(true));
+      setVisible(false);
+    }
+  }, [user, isSignupComplete, dispatch]);
+
+  useEffect(() => {
     if (user) {
       setForm(prev => ({
         ...prev,
-        first_name: user.firstName || '',
-        last_name: user.lastName || '',
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
         email: user.email || '',
       }));
     }
   }, [user]);
+
+  useEffect(() => {
+    if (visible && !form.address) {
+      (async () => {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') return;
+          
+          const location = await Location.getCurrentPositionAsync({});
+          setForm(prev => ({
+            ...prev,
+            lat: location.coords.latitude,
+            lng: location.coords.longitude,
+          }));
+
+          const geocode = await Location.reverseGeocodeAsync({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+          
+          if (geocode.length > 0) {
+            const addr = geocode[0];
+            const addressString = [addr.street, addr.city, addr.region, addr.country].filter(Boolean).join(', ');
+            setForm(prev => ({ ...prev, address: addressString }));
+          }
+        } catch (err) {
+          console.warn("Failed to get location for signup", err);
+        }
+      })();
+    }
+  }, [visible]);
 
   const completeProfileMutation = useMutation({
     mutationFn: authEndpoints.completeProfile,
@@ -88,6 +129,19 @@ export const SignupBottomSheet = () => {
       showError(`Please fill all required fields`);
       return;
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email)) {
+      showError('Please enter a valid email address');
+      return;
+    }
+
+    const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dobRegex.test(form.date_of_birth)) {
+      showError('DOB must be in YYYY-MM-DD format');
+      return;
+    }
+
     completeProfileMutation.mutate(form);
   };
 

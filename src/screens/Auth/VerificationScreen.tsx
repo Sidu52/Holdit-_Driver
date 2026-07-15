@@ -11,10 +11,12 @@ import {
 import { THEME } from '../../theme/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 export const VerificationScreen = ({ phone, onChangePhone, onVerify }: { phone: string, onChangePhone: () => void, onVerify: (otp: string) => void }) => {
   const [otp, setOtp] = useState('');
-  const [timer, setTimer] = useState(30);
+  const [timer, setTimer] = useState(60);
+  const [attemptsInfo, setAttemptsInfo] = useState<string | null>(null);
   const { verifyOtp, isVerifying, login } = useAuth();
   const inputRef = useRef<TextInput>(null);
 
@@ -38,6 +40,7 @@ export const VerificationScreen = ({ phone, onChangePhone, onVerify }: { phone: 
   const handleChange = (text: string) => {
     const cleaned = text.replace(/[^0-9]/g, '');
     setOtp(cleaned);
+    setAttemptsInfo(null); // clear previous attempts info on new input
 
     // Auto verify once exactly filled!
     if (cleaned.length === OTP_LENGTH) {
@@ -47,6 +50,12 @@ export const VerificationScreen = ({ phone, onChangePhone, onVerify }: { phone: 
         {
           onSuccess: () => {
             onVerify(cleaned);
+          },
+          onError: (err: any) => {
+            const data = err?.response?.data;
+            if (data?.data?.attemptsRemaining !== undefined) {
+              setAttemptsInfo(`${data.data.attemptsRemaining} attempts remaining`);
+            }
           }
         }
       );
@@ -56,15 +65,17 @@ export const VerificationScreen = ({ phone, onChangePhone, onVerify }: { phone: 
   const handleResend = () => {
     if (timer > 0) return;
     setOtp('');
+    setAttemptsInfo(null);
     inputRef.current?.focus();
     // Re-trigger the login mutation to dispatch another OTP
     login(phone, {
-      onSuccess: () => setTimer(30)
+      onSuccess: () => setTimer(60)
     });
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" backgroundColor={THEME.BACKGROUND_LIGHT} />
       <View style={styles.header}>
         <Text style={styles.title}>Enter OTP</Text>
         <View style={styles.subtitleRow}>
@@ -113,6 +124,10 @@ export const VerificationScreen = ({ phone, onChangePhone, onVerify }: { phone: 
             {timer > 0 ? `Resend OTP in ${timer}s` : 'Resend OTP now'}
           </Text>
         </TouchableOpacity>
+      )}
+      
+      {attemptsInfo && (
+        <Text style={styles.attemptsText}>{attemptsInfo}</Text>
       )}
 
     </SafeAreaView>
@@ -214,8 +229,15 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    color: THEME.PRIMARY,
-    fontWeight: '700',
-    fontSize: 16,
+    fontSize: 14,
+    color: THEME.TEXT_DARK_SECONDARY,
+    fontWeight: '600',
+  },
+  attemptsText: {
+    color: THEME.ERROR,
+    textAlign: 'center',
+    marginTop: 10,
+    fontSize: 14,
+    fontWeight: '600',
   }
 });

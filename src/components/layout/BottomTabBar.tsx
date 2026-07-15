@@ -20,7 +20,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["bottom", "left", "right"]}>
       <View style={styles.container}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;

@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FA',
     padding: 16,
-    paddingTop: 60,
+    paddingTop: 16,
   },
   profileHeaderCard: {
     backgroundColor: 'white',

@@ -145,8 +145,10 @@ export const arriveAtPickup = async (bookingId: string) => {
   return response.data;
 };
 
-export const completePickup = async (bookingId: string, data?: any) => {
-  const response = await api.put(`/driver/rides/${bookingId}/complete-pickup`, data);
+export const completePickup = async (bookingId: string, data?: FormData) => {
+  const response = await api.put(`/driver/rides/${bookingId}/complete-pickup`, data, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return response.data;
 };
 
@@ -165,7 +167,14 @@ export const arriveAtDelivery = async (bookingId: string) => {
   return response.data;
 };
 
-export const completeDelivery = async (bookingId: string, data?: any) => {
-  const response = await api.put(`/driver/rides/${bookingId}/complete-delivery`, data);
+export const arriveAtStoreForReturn = async (bookingId: string) => {
+  const response = await api.put(`/driver/rides/${bookingId}/arrive-store-return`);
+  return response.data;
+};
+
+export const completeDelivery = async (bookingId: string, data?: FormData) => {
+  const response = await api.put(`/driver/rides/${bookingId}/complete-delivery`, data, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
   return response.data;
 };
